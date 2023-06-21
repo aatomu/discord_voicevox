@@ -1,0 +1,7 @@
+#shell script
+*.sh
+#VScode History
+.history
+#./dic(辞書) UserConfig.txt user_config.json
+*.txt
+*.json
