@@ -80,7 +80,7 @@ Voice
  Connect
  Speak
 ```
-[WIP] 招待リンク `https://discord.com/api/oauth2/authorize?client_id=<Your Bot Client ID>&permissions=3492928&scope=applications.commands%20bot`  
+招待リンク `https://discord.com/api/oauth2/authorize?client_id=<Your Bot Client ID>&permissions=3230720&scope=bot%20applications.commands`  
   
 ## -起動-  
 ```go run main.go -token=<bot token>```
