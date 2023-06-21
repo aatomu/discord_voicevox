@@ -59,7 +59,7 @@ MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM+JJJJ` ` `` ` `` ``(JJJJMMMMMMMMMMMMM
 -->
 # discord_voicevox
 Golangで自分のために作成  
-開発環境: go1.20.1 linux/amd64 ffmpeg:4.4.2-0ubuntu0.22.04.1  
+開発環境: go1.20.1 linux/amd64 ffmpeg:4.4.2-0ubuntu0.22.04.1 Docker:24.0.2  
 Powerd By [Voicevox](https://voicevox.hiroshiba.jp/)
 
 ## -必要permission-  
