@@ -86,6 +86,6 @@ Voice
 ```go run main.go -token=<bot token>```
   
 ## コード元:  
-TTS API        : https://github.com/VOICEVOX/voicevox_engine/
+TTS API        : https://github.com/VOICEVOX/voicevox_engine/  
 Bot API Code   : https://github.com/bwmarrin/discordgo  
 Bot Language   : https://golang.org/  
