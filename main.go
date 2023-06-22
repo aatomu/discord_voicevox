@@ -65,7 +65,7 @@ var (
 	dummy                 = UserSetting{
 		Lang:  "auto",
 		Speed: 1.5,
-		Type:  "",
+		Type:  "1",
 	}
 	embedSuccessColor = 0x1E90FF
 	embedFailedColor  = 0x00008f
@@ -390,7 +390,7 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 		return UserSetting{
 			Lang:  "ja",
 			Speed: 1.75,
-			Type:  "",
+			Type:  "1",
 		}, nil
 	}
 
@@ -600,9 +600,20 @@ func (session *SessionData) Speech(userID string, text string) {
 	session.lead.Lock()
 	defer session.lead.Unlock()
 
-	voiceURL := fmt.Sprintf("http://translate.google.com/translate_tts?ie=UTF-8&textlen=100&client=tw-ob&q=%s&tl=%s", url.QueryEscape(read), settingData.Lang)
+	query, err := http.Post(fmt.Sprintf("http://127.0.0.1:50021/audio_query?speaker=%s&text=%s", settingData.Type, url.QueryEscape(read)), "application/json", nil)
+	if err != nil {
+		log.Println("Failed Get Voicevox Query", err)
+		return
+	}
+	defer query.Body.Close()
+	voice, err := http.Post(fmt.Sprintf("http://127.0.0.1:50021/synthesis?speaker=%s", settingData.Type), "application/json", query.Body)
+	if err != nil {
+		log.Println("Failed Get Voicevox Voice", err)
+		return
+	}
+	defer voice.Body.Close()
 	var end chan bool
-	err = discordbot.PlayAudioFile(settingData.Speed, 1, session.vcsession, voiceURL, false, end)
+	err = PlayAudioFile(settingData.Speed, session.vcsession, voice.Body, false, end)
 	utils.PrintError("Failed play Audio \""+read+"\" ", err)
 }
 
@@ -632,4 +643,38 @@ func Success(res slashlib.InteractionResponse, description string) {
 		},
 	})
 	utils.PrintError("Failed send response", err)
+}
+
+func PlayAudioFile(speed float64, vcsession *discordgo.VoiceConnection, r io.Reader, isPlayback bool, end <-chan bool) error {
+	if err := vcsession.Speaking(true); err != nil {
+		return err
+	}
+	defer vcsession.Speaking(false)
+
+	done := make(chan error)
+	stream := discordbot.NewMemEncodeStream(vcsession, r, discordbot.EncodeOpts{
+		Compression: 1,
+		AudioFilter: fmt.Sprintf("aresample=24000,atempo=%f", speed),
+	}, done)
+
+	ticker := time.NewTicker(time.Second)
+	if !isPlayback {
+		ticker.Stop()
+	}
+
+	for {
+		select {
+		case err := <-done:
+			if err != nil && err != io.EOF {
+				return err
+			}
+			stream.Cleanup()
+			return nil
+		case <-ticker.C:
+			log.Printf("Sending Now... : Playback:%.2f(x%.2f)", stream.Status.Time.Seconds(), stream.Status.Speed)
+		case <-end:
+			stream.Cleanup()
+			return nil
+		}
+	}
 }
