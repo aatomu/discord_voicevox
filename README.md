@@ -70,25 +70,25 @@ Powerd By [Voicevox](https://voicevox.hiroshiba.jp/)
 |冥鳴ひまり|VOICEVOX:冥鳴ひまり|https://meimeihimari.wixsite.com/himari/terms-of-use|
 |ちび式じい|VOICEVOX:ちび式じい|https://docs.google.com/presentation/d/1AcD8zXkfzKFf2ertHwWRwJuQXjNnijMxhz7AJzEkaI4|
 |小夜/SAYO|VOICEVOX:小夜/SAYO|https://316soramegu.wixsite.com/sayo-official/guideline|
-```
+
 ## -必要permission-  
-OAuth2:  
-```
-BOT  
-applications.commands
-```
-Bot:  
-```
-General
- Read Messages/View Channels
-Text
- Send Messages
- Embed Links
- Read Message History
-Voice
- Connect
- Speak
-```
+* SETTINGS
+  * OAuth2
+    * [x] BOT
+      * General Permissions
+        * [x] Read Message
+      * Text Permissions
+        * [x] Send Messages
+        * [x] Embed Links
+        * [x] Read Message History
+      * Voice Permissions
+        * [x] Connect
+        * [x] Speak
+    * [x] applications.commands
+  * Bot
+    * Privileged Gateway Intents
+      * [x] MESSAGE CONTENT INTENT
+
 招待リンク `https://discord.com/api/oauth2/authorize?client_id=<Your Bot Client ID>&permissions=3230720&scope=bot%20applications.commands`  
   
 ## -起動-  
