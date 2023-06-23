@@ -39,7 +39,7 @@ type SessionData struct {
 type UserSetting struct {
 	Lang  string  `json:"language"`
 	Speed float64 `json:"speed"`
-	Type  string  `json:"type"`
+	Type  int64   `json:"type"`
 }
 
 type VoicevoxSpeaker struct {
@@ -61,11 +61,11 @@ var (
 	token                 = flag.String("token", "", "bot token")
 	sessions              Sessions
 	isVcSessionUpdateLock = false
-	voicevoxSpeaker       = map[string]string{"四国めたん": "2", "ずんだもん": "3", "春日部つむぎ": "8", "冥鳴ひまり": "14", "ちび式じい": "42", "小夜/SAYO": "46"}
+	speakerList           = map[int]string{}
 	dummy                 = UserSetting{
 		Lang:  "auto",
 		Speed: 1.5,
-		Type:  "1",
+		Type:  1,
 	}
 	embedSuccessColor = 0x1E90FF
 	embedFailedColor  = 0x00008f
@@ -132,7 +132,11 @@ func VoicevoxInit() {
 
 	fmt.Println("Voicevox Speakers: ")
 	for _, speaker := range speakers {
-		fmt.Printf("\"%s\":\"%d\",", speaker.Name, speaker.Styles[0].ID)
+		for _, style := range speaker.Styles {
+			name := speaker.Name + "-" + style.Name
+			fmt.Printf("\"%s\":\"%d\",", name, style.ID)
+			speakerList[style.ID] = name
+		}
 	}
 	fmt.Println("")
 }
@@ -143,10 +147,11 @@ func onReady(discord *discordgo.Session, r *discordgo.Ready) {
 
 	// コマンドの追加
 	var minSpeed float64 = 0.5
-	cmd := new(slashlib.Command).
+	new(slashlib.Command).
 		//TTS
 		AddCommand("join", "VoiceChatに接続します", discordgo.PermissionViewChannel).
 		AddCommand("leave", "VoiceChatから切断します", discordgo.PermissionViewChannel).
+		AddCommand("list", "Voicevoxのキャラクター名一覧を表示します", discordgo.PermissionViewChannel).
 		AddCommand("get", "読み上げ設定を表示します", discordgo.PermissionViewChannel).
 		AddCommand("set", "読み上げ設定を変更します", discordgo.PermissionViewChannel).
 		AddOption(&discordgo.ApplicationCommandOption{
@@ -157,14 +162,10 @@ func onReady(discord *discordgo.Session, r *discordgo.Ready) {
 			MaxValue:    5,
 		}).
 		AddOption(&discordgo.ApplicationCommandOption{
-			Type:        discordgo.ApplicationCommandOptionString,
+			Type:        discordgo.ApplicationCommandOptionInteger,
 			Name:        "type",
 			Description: "読み上げキャラクターを設定",
-		})
-	for name, speakerID := range voicevoxSpeaker {
-		cmd.AddChoice(name, speakerID)
-	}
-	cmd.CommandCreate(discord, "")
+		}).CommandCreate(discord, "")
 }
 
 // メッセージが送られたときにCall
@@ -329,6 +330,24 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 		sessions.Delete(i.GuildID)
 		return
 
+	case "list":
+		res.Thinking(false)
+
+		var text string
+		text = "```"
+		for id, name := range speakerList {
+			text += fmt.Sprintf("% -15s: %d\n", name, id)
+		}
+		text += "```"
+		res.Follow(&discordgo.WebhookParams{
+			Embeds: []*discordgo.MessageEmbed{
+				{
+					Title:       "Voicevox Character List",
+					Description: text,
+				},
+			},
+		})
+		return
 	case "get":
 		res.Thinking(false)
 
@@ -342,7 +361,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 			Embeds: []*discordgo.MessageEmbed{
 				{
 					Title:       fmt.Sprintf("@%s's Speech Config", i.UserName),
-					Description: fmt.Sprintf("```\nLang  : %4s\nSpeed : %3.2f\nType : %4s```", result.Lang, result.Speed, result.Type),
+					Description: fmt.Sprintf("```\nLang  : %4s\nSpeed : %3.2f\nType  : %4d(%s)```", result.Lang, result.Speed, result.Type, speakerList[int(result.Type)]),
 				},
 			},
 		})
@@ -363,7 +382,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 			result.Speed = newSpeed.FloatValue()
 		}
 		if newType, ok := i.CommandOptions["type"]; ok {
-			result.Type = newType.StringValue()
+			result.Type = newType.IntValue()
 		}
 		if newLang, ok := i.CommandOptions["lang"]; ok {
 			result.Lang = newLang.StringValue()
@@ -390,7 +409,7 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 		return UserSetting{
 			Lang:  "ja",
 			Speed: 1.75,
-			Type:  "1",
+			Type:  1,
 		}, nil
 	}
 
@@ -439,7 +458,7 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 			result.Speed = user.Speed
 		}
 		//Type
-		if user.Type != "" {
+		if user.Type != 0 {
 			result.Type = user.Type
 		}
 		//最後に書き込むテキストを追加(Write==trueの時)
@@ -600,13 +619,13 @@ func (session *SessionData) Speech(userID string, text string) {
 	session.lead.Lock()
 	defer session.lead.Unlock()
 
-	query, err := http.Post(fmt.Sprintf("http://127.0.0.1:50021/audio_query?speaker=%s&text=%s", settingData.Type, url.QueryEscape(read)), "application/json", nil)
+	query, err := http.Post(fmt.Sprintf("http://127.0.0.1:50021/audio_query?speaker=%d&text=%s", settingData.Type, url.QueryEscape(read)), "application/json", nil)
 	if err != nil {
 		log.Println("Failed Get Voicevox Query", err)
 		return
 	}
 	defer query.Body.Close()
-	voice, err := http.Post(fmt.Sprintf("http://127.0.0.1:50021/synthesis?speaker=%s", settingData.Type), "application/json", query.Body)
+	voice, err := http.Post(fmt.Sprintf("http://127.0.0.1:50021/synthesis?speaker=%d", settingData.Type), "application/json", query.Body)
 	if err != nil {
 		log.Println("Failed Get Voicevox Voice", err)
 		return
