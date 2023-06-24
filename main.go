@@ -39,6 +39,7 @@ type SessionData struct {
 type UserSetting struct {
 	Lang  string  `json:"language"`
 	Speed float64 `json:"speed"`
+	Pitch float64 `json:"pitch"`
 	Type  int64   `json:"type"`
 }
 
@@ -65,6 +66,7 @@ var (
 	dummy                 = UserSetting{
 		Lang:  "auto",
 		Speed: 1.5,
+		Pitch: 1.1,
 		Type:  1,
 	}
 	embedColor = 0x4169E1
@@ -146,6 +148,7 @@ func onReady(discord *discordgo.Session, r *discordgo.Ready) {
 
 	// コマンドの追加
 	var minSpeed float64 = 0.5
+	var minPitch float64 = 0.5
 	new(slashlib.Command).
 		//TTS
 		AddCommand("join", "VoiceChatに接続します", discordgo.PermissionViewChannel).
@@ -159,6 +162,13 @@ func onReady(discord *discordgo.Session, r *discordgo.Ready) {
 			Description: "読み上げ速度を設定",
 			MinValue:    &minSpeed,
 			MaxValue:    5,
+		}).
+		AddOption(&discordgo.ApplicationCommandOption{
+			Type:        discordgo.ApplicationCommandOptionNumber,
+			Name:        "pitch",
+			Description: "声の高さを設定",
+			MinValue:    &minPitch,
+			MaxValue:    1.5,
 		}).
 		AddOption(&discordgo.ApplicationCommandOption{
 			Type:        discordgo.ApplicationCommandOptionInteger,
@@ -360,7 +370,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 			Embeds: []*discordgo.MessageEmbed{
 				{
 					Title:       fmt.Sprintf("@%s's Speech Config", i.UserName),
-					Description: fmt.Sprintf("```\nLang  : %4s\nSpeed : %3.2f\nType  : %4d(%s)```", result.Lang, result.Speed, result.Type, speakerList[int(result.Type)]),
+					Description: fmt.Sprintf("```\nLang  : %4s\nSpeed : %3.2f\nPitch : %3.2f\nType  : %4d(%s)```", result.Lang, result.Speed, result.Pitch, result.Type, speakerList[int(result.Type)]),
 				},
 			},
 		})
@@ -379,6 +389,9 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 		// チェック
 		if newSpeed, ok := i.CommandOptions["speed"]; ok {
 			result.Speed = newSpeed.FloatValue()
+		}
+		if newPitch, ok := i.CommandOptions["pitch"]; ok {
+			result.Pitch = newPitch.FloatValue()
 		}
 		if newType, ok := i.CommandOptions["type"]; ok {
 			result.Type = newType.IntValue()
@@ -408,6 +421,7 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 		return UserSetting{
 			Lang:  "ja",
 			Speed: 1.75,
+			Pitch: 1,
 			Type:  1,
 		}, nil
 	}
@@ -449,15 +463,19 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 	// 書き込み
 	if user != nilUserSetting {
 		//lang
-		if user.Lang != "" {
+		if user.Lang != result.Lang {
 			result.Lang = user.Lang
 		}
 		//speed
-		if user.Speed != 0.0 {
+		if user.Speed != result.Speed {
 			result.Speed = user.Speed
 		}
+		//pitch
+		if user.Pitch != result.Pitch {
+			result.Pitch = user.Pitch
+		}
 		//Type
-		if user.Type != 0 {
+		if user.Type != result.Type {
 			result.Type = user.Type
 		}
 		//最後に書き込むテキストを追加(Write==trueの時)
@@ -631,7 +649,7 @@ func (session *SessionData) Speech(userID string, text string) {
 	}
 	defer voice.Body.Close()
 	var end chan bool
-	err = PlayAudioFile(settingData.Speed, session.vcsession, voice.Body, false, end)
+	err = PlayAudioFile(settingData.Speed, settingData.Pitch, session.vcsession, voice.Body, false, end)
 	utils.PrintError("Failed play Audio \""+read+"\" ", err)
 }
 
@@ -663,7 +681,7 @@ func Success(res slashlib.InteractionResponse, description string) {
 	utils.PrintError("Failed send response", err)
 }
 
-func PlayAudioFile(speed float64, vcsession *discordgo.VoiceConnection, r io.Reader, isPlayback bool, end <-chan bool) error {
+func PlayAudioFile(speed, pitch float64, vcsession *discordgo.VoiceConnection, r io.Reader, isPlayback bool, end <-chan bool) error {
 	if err := vcsession.Speaking(true); err != nil {
 		return err
 	}
@@ -672,7 +690,7 @@ func PlayAudioFile(speed float64, vcsession *discordgo.VoiceConnection, r io.Rea
 	done := make(chan error)
 	stream := discordbot.NewMemEncodeStream(vcsession, r, discordbot.EncodeOpts{
 		Compression: 1,
-		AudioFilter: fmt.Sprintf("aresample=24000,atempo=%f", speed),
+		AudioFilter: fmt.Sprintf("aresample=24000,asetrate=24000*%f/100,atempo=100/%f*%f", pitch*100, pitch*100, speed),
 	}, done)
 
 	ticker := time.NewTicker(time.Second)
