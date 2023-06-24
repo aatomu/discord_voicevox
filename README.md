@@ -121,3 +121,7 @@ Voicevox利用規約は[こちら](https://voicevox.hiroshiba.jp/term/)
 TTS API        : https://github.com/VOICEVOX/voicevox_engine/  
 Bot API Code   : https://github.com/bwmarrin/discordgo  
 Bot Language   : https://golang.org/  
+
+## Invite
+(不定期に落ちます)
+https://www.aatomu.work/discord/im_a_voice
