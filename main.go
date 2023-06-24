@@ -344,8 +344,18 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 
 		var text string
 		text = "```"
-		for id, name := range speakerList {
-			text += fmt.Sprintf("% -15s: %d\n", name, id)
+		n := 0
+		for i := 0; true; i++ {
+			name, ok := speakerList[i]
+			if !ok {
+				continue
+			}
+			text += fmt.Sprintf("%3d: %s\n", i, name)
+
+			n++
+			if n >= len(speakerList) {
+				break
+			}
 		}
 		text += "```"
 		res.Follow(&discordgo.WebhookParams{

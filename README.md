@@ -61,15 +61,38 @@ MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM+JJJJ` ` `` ` `` ``(JJJJMMMMMMMMMMMMM
 Golangで自分のために作成  
 開発環境: go1.20.1 linux/amd64 ffmpeg:4.4.2-0ubuntu0.22.04.1 Docker:24.0.2  
 Powerd By [Voicevox](https://voicevox.hiroshiba.jp/)
+Voicevox利用規約は[こちら](https://voicevox.hiroshiba.jp/term/)
 
-|キャラクター名| クレジット| 利用規約 |
-|-|-|-|
-|四国めたん|VOICEVOX:四国めたん|https://zunko.jp/con_ongen_kiyaku.html|
-|ずんだもん|VOICEVOX:ずんだもん|https://zunko.jp/con_ongen_kiyaku.html|
-|春日部つむぎ|VOICEVOX:春日部つむぎ|https://tsumugi-official.studio.site/rule|
-|冥鳴ひまり|VOICEVOX:冥鳴ひまり|https://meimeihimari.wixsite.com/himari/terms-of-use|
-|ちび式じい|VOICEVOX:ちび式じい|https://docs.google.com/presentation/d/1AcD8zXkfzKFf2ertHwWRwJuQXjNnijMxhz7AJzEkaI4|
-|小夜/SAYO|VOICEVOX:小夜/SAYO|https://316soramegu.wixsite.com/sayo-official/guideline|
+<details>
+  <summary>Voicevox キャラクタークレジット x26</summary>
+
+  * VOICEVOX:四国めたん
+  * VOICEVOX:ずんだもん
+  * VOICEVOX:春日部つむぎ
+  * VOICEVOX:雨晴はう
+  * VOICEVOX:波音リツ
+  * VOICEVOX:玄野武宏
+  * VOICEVOX:白上虎太郎
+  * VOICEVOX:青山龍星
+  * VOICEVOX:冥鳴ひまり
+  * VOICEVOX:九州そら
+  * VOICEVOX:もち子(cv 明日葉よもぎ)
+  * VOICEVOX:剣崎雌雄
+  * VOICEVOX:WhiteCUL
+  * VOICEVOX:後鬼
+  * VOICEVOX:No.7
+  * VOICEVOX:ちび式じい
+  * VOICEVOX:櫻歌ミコ
+  * VOICEVOX:小夜/SAYO
+  * VOICEVOX:ナースロボ＿タイプＴ
+  * VOICEVOX:†聖騎士 紅桜†
+  * VOICEVOX:雀松朱司
+  * VOICEVOX:麒ヶ島宗麟
+  * VOICEVOX:春歌ナナ
+  * VOICEVOX:猫使アル
+  * VOICEVOX:猫使ビィ
+  * VOICEVOX:中国うさぎ
+</details>
 
 ## -必要permission-  
 * SETTINGS
