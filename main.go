@@ -16,10 +16,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/atomu21263/atomicgo/discordbot"
-	"github.com/atomu21263/atomicgo/files"
-	"github.com/atomu21263/atomicgo/utils"
-	"github.com/atomu21263/slashlib"
+	"github.com/aatomu/atomicgo/discordbot"
+	"github.com/aatomu/atomicgo/files"
+	"github.com/aatomu/atomicgo/utils"
+	"github.com/aatomu/slashlib"
 	"github.com/bwmarrin/discordgo"
 	"golang.org/x/text/language"
 )
