@@ -16,10 +16,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/aatomu/atomicgo/discordbot"
-	"github.com/aatomu/atomicgo/files"
-	"github.com/aatomu/atomicgo/utils"
-	"github.com/aatomu/slashlib"
+	"github.com/aatomu/aatomlib/disgord"
+	"github.com/aatomu/aatomlib/utils"
 	"github.com/bwmarrin/discordgo"
 	"golang.org/x/text/language"
 )
@@ -85,7 +83,7 @@ func main() {
 	}()
 
 	//discordBot 起動準備
-	discord, err := discordbot.Init(*token)
+	discord, err := discordgo.New("Bot " + *token)
 	if err != nil {
 		fmt.Println("Failed Bot Init", err)
 		return
@@ -98,7 +96,7 @@ func main() {
 	discord.AddHandler(onVoiceStateUpdate)
 
 	//起動
-	discordbot.Start(discord)
+	discord.Open()
 	defer func() {
 		fmt.Println("Stop DiscordBot")
 		for _, session := range sessions.guilds {
@@ -149,32 +147,45 @@ func onReady(discord *discordgo.Session, r *discordgo.Ready) {
 	// コマンドの追加
 	var minSpeed float64 = 0.5
 	var minPitch float64 = 0.5
-	new(slashlib.Command).
-		//TTS
-		AddCommand("join", "VoiceChatに接続します", discordgo.PermissionViewChannel).
-		AddCommand("leave", "VoiceChatから切断します", discordgo.PermissionViewChannel).
-		AddCommand("list", "Voicevoxのキャラクター名一覧を表示します", discordgo.PermissionViewChannel).
-		AddCommand("get", "読み上げ設定を表示します", discordgo.PermissionViewChannel).
-		AddCommand("set", "読み上げ設定を変更します", discordgo.PermissionViewChannel).
-		AddOption(&discordgo.ApplicationCommandOption{
-			Type:        discordgo.ApplicationCommandOptionNumber,
-			Name:        "speed",
-			Description: "読み上げ速度を設定",
-			MinValue:    &minSpeed,
-			MaxValue:    5,
-		}).
-		AddOption(&discordgo.ApplicationCommandOption{
-			Type:        discordgo.ApplicationCommandOptionNumber,
-			Name:        "pitch",
-			Description: "声の高さを設定",
-			MinValue:    &minPitch,
-			MaxValue:    1.5,
-		}).
-		AddOption(&discordgo.ApplicationCommandOption{
-			Type:        discordgo.ApplicationCommandOptionInteger,
-			Name:        "type",
-			Description: "読み上げキャラクターを設定",
-		}).CommandCreate(discord, "")
+	disgord.InteractionCommandCreate(discord, "", []*discordgo.ApplicationCommand{
+		// Voice commands
+		{
+			Type:                     discordgo.ChatApplicationCommand,
+			Name:                     "join",
+			Description:              "VoiceChatに接続します",
+			DefaultMemberPermissions: Pinter(discordgo.PermissionViewChannel),
+		},
+		{
+			Type:                     discordgo.ChatApplicationCommand,
+			Name:                     "leave",
+			Description:              "VoiceChatから切断します",
+			DefaultMemberPermissions: Pinter(discordgo.PermissionViewChannel),
+		},
+		{
+			Type:                     discordgo.ChatApplicationCommand,
+			Name:                     "list",
+			Description:              "Voicevoxのキャラクター名一覧を表示します",
+			DefaultMemberPermissions: Pinter(discordgo.PermissionViewChannel),
+		},
+		{
+			Type:                     discordgo.ChatApplicationCommand,
+			Name:                     "get",
+			Description:              "読み上げ設定を表示します",
+			DefaultMemberPermissions: Pinter(discordgo.PermissionViewChannel),
+		},
+		{
+			Type:                     discordgo.ChatApplicationCommand,
+			Name:                     "set",
+			Description:              "読み上げ設定を変更します",
+			DefaultMemberPermissions: Pinter(discordgo.PermissionViewChannel),
+			Options: []*discordgo.ApplicationCommandOption{
+				{Type: discordgo.ApplicationCommandOptionNumber, Name: "speed", Description: "読み上げ速度を設定", MinValue: &minSpeed, MaxValue: 5},
+				{Type: discordgo.ApplicationCommandOptionNumber, Name: "pitch", Description: "声の高さを設定", MinValue: &minPitch, MaxValue: 1.5},
+				{Type: discordgo.ApplicationCommandOptionInteger, Name: "type", Description: "読み上げキャラクターを設定"},
+			},
+		},
+	},
+	)
 }
 
 // メッセージが送られたときにCall
@@ -186,9 +197,18 @@ func onMessageCreate(discord *discordgo.Session, m *discordgo.MessageCreate) {
 	if joinedVC != 0 {
 		VC = fmt.Sprintf(" %d鯖でお話し中", joinedVC)
 	}
-	discordbot.BotStateUpdate(discord, fmt.Sprintf("/join | %d鯖で稼働中 %s", joinedGuilds, VC), 0)
+	discord.UpdateStatusComplex(discordgo.UpdateStatusData{
+		Status: string(discordgo.StatusOnline),
+		Activities: []*discordgo.Activity{
+			{
+				Name:  "i'm a bot",
+				Type:  discordgo.ActivityTypeGame,
+				State: fmt.Sprintf("/join | %d鯖で稼働中 %s", joinedGuilds, VC),
+			},
+		},
+	})
 
-	mData := discordbot.MessageParse(discord, m)
+	mData := disgord.MessageParse(discord, m.Message)
 	log.Println(mData.FormatText)
 
 	// VCsession更新
@@ -220,12 +240,12 @@ func onMessageCreate(discord *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// debug
-	if mData.UserID == "701336137012215818" {
+	if mData.User.ID == "701336137012215818" {
 		switch {
-		case utils.RegMatch(mData.Message, "^!debug"):
+		case utils.RegMatch(mData.Message.Content, "^!debug"):
 			// セッション処理
-			if utils.RegMatch(mData.Message, "[0-9]$") {
-				guildID := utils.RegReplace(mData.Message, "", `^!debug\s*`)
+			if utils.RegMatch(mData.Message.Content, "[0-9]$") {
+				guildID := utils.RegReplace(mData.Message.Content, "", `^!debug\s*`)
 				log.Println("Deleting SessionItem : " + guildID)
 				sessions.Delete(guildID)
 				return
@@ -270,15 +290,6 @@ func onMessageCreate(discord *discordgo.Session, m *discordgo.MessageCreate) {
 				}
 			}
 			return
-		case mData.Message == "?join":
-			session := sessions.Get(mData.GuildID)
-
-			if session.IsJoined() {
-				return
-			}
-
-			JoinVoice(discord, m.GuildID, m.ChannelID, m.Author.ID, slashlib.InteractionResponse{})
-			return
 		}
 	}
 
@@ -286,7 +297,7 @@ func onMessageCreate(discord *discordgo.Session, m *discordgo.MessageCreate) {
 	session := sessions.Get(mData.GuildID)
 	if session != nil {
 		if session.IsJoined() && session.channelID == mData.ChannelID {
-			session.Speech(mData.UserID, mData.Message)
+			session.Speech(mData.User.ID, mData.Message.Content)
 			return
 		}
 	}
@@ -295,18 +306,10 @@ func onMessageCreate(discord *discordgo.Session, m *discordgo.MessageCreate) {
 // InteractionCreate
 func onInteractionCreate(discord *discordgo.Session, iData *discordgo.InteractionCreate) {
 	// 表示&処理しやすく
-	i := slashlib.InteractionViewAndEdit(discord, iData)
-
-	// slashじゃない場合return
-	if i.Check != slashlib.SlashCommand {
-		return
-	}
+	i := disgord.InteractionParse(discord, iData.Interaction)
 
 	// response用データ
-	res := slashlib.InteractionResponse{
-		Discord:     discord,
-		Interaction: iData.Interaction,
-	}
+	res := disgord.NewInteractionResponse(discord, iData.Interaction)
 
 	session := sessions.Get(i.GuildID)
 	// 分岐
@@ -320,7 +323,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 			return
 		}
 
-		JoinVoice(discord, i.GuildID, i.ChannelID, i.UserID, res)
+		JoinVoice(discord, i.GuildID, i.ChannelID, i.User.ID, res)
 		return
 
 	case "leave":
@@ -370,7 +373,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 	case "get":
 		res.Thinking(false)
 
-		result, err := userConfig(i.UserID, UserSetting{})
+		result, err := userConfig(i.User.ID, UserSetting{})
 		if utils.PrintError("Failed Get Config", err) {
 			Failed(res, "データのアクセスに失敗しました。")
 			return
@@ -379,7 +382,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 		res.Follow(&discordgo.WebhookParams{
 			Embeds: []*discordgo.MessageEmbed{
 				{
-					Title:       fmt.Sprintf("@%s's Speech Config", i.UserName),
+					Title:       fmt.Sprintf("@%s's Speech Config", i.User.Username),
 					Description: fmt.Sprintf("```\nLang  : %4s\nSpeed : %3.2f\nPitch : %3.2f\nType  : %4d(%s)```", result.Lang, result.Speed, result.Pitch, result.Type, speakerList[int(result.Type)]),
 				},
 			},
@@ -390,7 +393,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 		res.Thinking(false)
 
 		// 保存
-		result, err := userConfig(i.UserID, UserSetting{})
+		result, err := userConfig(i.User.ID, UserSetting{})
 		if utils.PrintError("Failed Get Config", err) {
 			Failed(res, "読み上げ設定を読み込めませんでした")
 			return
@@ -416,7 +419,7 @@ func onInteractionCreate(discord *discordgo.Session, iData *discordgo.Interactio
 			}
 		}
 
-		_, err = userConfig(i.UserID, result)
+		_, err = userConfig(i.User.ID, result)
 		if utils.PrintError("Failed Write Config", err) {
 			Failed(res, "保存に失敗しました")
 		}
@@ -439,8 +442,11 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 	//ファイルパスの指定
 	fileName := "./user_config.json"
 
-	if !files.IsAccess(fileName) {
-		if files.Create(fileName, false) != nil {
+	_, err = os.Stat(fileName)
+	if os.IsNotExist(err) {
+		f, err := os.Create(fileName)
+		f.Close()
+		if err != nil {
 			return dummy, fmt.Errorf("failed Create Config File")
 		}
 	}
@@ -496,7 +502,7 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 			return dummy, fmt.Errorf("failed Marshal UserConfig")
 		}
 		//書き込み
-		files.WriteFileFlash(fileName, bytes)
+		os.WriteFile(fileName, bytes, 0655)
 		log.Println("User userConfig Writed")
 	}
 	return
@@ -504,8 +510,8 @@ func userConfig(userID string, user UserSetting) (result UserSetting, err error)
 
 // VCでJoin||Leaveが起きたときにCall
 func onVoiceStateUpdate(discord *discordgo.Session, v *discordgo.VoiceStateUpdate) {
-	vData := discordbot.VoiceStateParse(discord, v)
-	if !vData.StatusUpdate.ChannelJoin {
+	vData := disgord.VoiceStateParse(discord, v)
+	if !vData.UpdateStatus.ChannelJoin {
 		return
 	}
 	log.Println(vData.FormatText)
@@ -571,12 +577,10 @@ func (s *Sessions) Delete(guildID string) {
 }
 
 // Join Voice
-func JoinVoice(discord *discordgo.Session, guildID, channelID, userID string, res slashlib.InteractionResponse) {
-	vcSession, err := discordbot.JoinUserVCchannel(discord, userID, false, true)
+func JoinVoice(discord *discordgo.Session, guildID, channelID, userID string, res *disgord.InteractionResponse) {
+	vcSession, err := disgord.JoinUserVCchannel(discord, userID, false, true)
 	if utils.PrintError("Failed Join VoiceChat", err) {
-		if res.Discord != nil {
-			Failed(res, "ユーザーが VoiceChatに接続していない\nもしくは権限が不足しています")
-		}
+		Failed(res, "ユーザーが VoiceChatに接続していない\nもしくは権限が不足しています")
 		return
 	}
 
@@ -590,9 +594,7 @@ func JoinVoice(discord *discordgo.Session, guildID, channelID, userID string, re
 	sessions.Add(session)
 
 	session.Speech("BOT", "おはー")
-	if res.Discord != nil {
-		Success(res, "ハロー!")
-	}
+	Success(res, "ハロー!")
 }
 
 // Is Joined Session
@@ -664,7 +666,7 @@ func (session *SessionData) Speech(userID string, text string) {
 }
 
 // Command Failed Message
-func Failed(res slashlib.InteractionResponse, description string) {
+func Failed(res *disgord.InteractionResponse, description string) {
 	_, err := res.Follow(&discordgo.WebhookParams{
 		Embeds: []*discordgo.MessageEmbed{
 			{
@@ -678,7 +680,7 @@ func Failed(res slashlib.InteractionResponse, description string) {
 }
 
 // Command Success Message
-func Success(res slashlib.InteractionResponse, description string) {
+func Success(res *disgord.InteractionResponse, description string) {
 	_, err := res.Follow(&discordgo.WebhookParams{
 		Embeds: []*discordgo.MessageEmbed{
 			{
@@ -698,7 +700,7 @@ func PlayAudioFile(speed, pitch float64, vcsession *discordgo.VoiceConnection, r
 	defer vcsession.Speaking(false)
 
 	done := make(chan error)
-	stream := discordbot.NewMemEncodeStream(vcsession, r, discordbot.EncodeOpts{
+	stream := disgord.NewMemEncodeStream(vcsession, r, disgord.EncodeOpts{
 		Compression: 1,
 		AudioFilter: fmt.Sprintf("aresample=24000,asetrate=24000*%f/100,atempo=100/%f*%f", pitch*100, pitch*100, speed),
 	}, done)
@@ -723,4 +725,8 @@ func PlayAudioFile(speed, pitch float64, vcsession *discordgo.VoiceConnection, r
 			return nil
 		}
 	}
+}
+
+func Pinter(n int64) *int64 {
+	return &n
 }
